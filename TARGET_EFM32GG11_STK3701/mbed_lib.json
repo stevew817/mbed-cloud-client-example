@@ -1,0 +1,10 @@
+{
+    "name": "bootloader_EFM32GG11_STK3701",
+    "target_overrides": {
+        "EFM32GG11_STK3701": {
+            "target.app_offset": "0x00010800",
+            "target.header_offset": "0x00010000",
+            "target.bootloader_img": "mbed-bootloader-efm32gg11_stk3701-qspif-sotp.bin"
+        }
+    }
+}

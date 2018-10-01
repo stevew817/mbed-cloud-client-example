@@ -27,6 +27,7 @@
 #include "mbed.h"
 #include "mcc_common_setup.h"
 #include "mcc_common_config.h"
+#include "LittleFileSystem.h"
 
 // This is for single or dual partition mode. This is supposed to be used with storage for data e.g. SD card.
 // Enable by 1/disable by 0.
@@ -104,7 +105,25 @@ static NetworkInterface* network_interface=NULL;
 static BlockDevice* bd = NULL;
 #ifdef ARM_UC_USE_PAL_BLOCKDEVICE
 // Can be moved extern reference under update src. No reason keep here because get_default_instance is mbed-os interface.
+#if COMPONENT_QSPIF
+#include "QSPIFBlockDevice.h"
+static QSPIFBlockDevice default_bd(
+       MBED_CONF_QSPIF_QSPI_IO0,
+       MBED_CONF_QSPIF_QSPI_IO1,
+       MBED_CONF_QSPIF_QSPI_IO2,
+       MBED_CONF_QSPIF_QSPI_IO3,
+       MBED_CONF_QSPIF_QSPI_CLK,
+       MBED_CONF_QSPIF_QSPI_CS,
+       QSPIF_POLARITY_MODE_0,
+       MBED_CONF_QSPIF_QSPI_FREQ);
+BlockDevice* arm_uc_blockdevice = &default_bd;
+#else
 BlockDevice* arm_uc_blockdevice = BlockDevice::get_default_instance();
+#endif
+#endif
+
+#if PLATFORM_ENABLE_BUTTON
+DigitalIn but1(MBED_CONF_APP_BUTTON_PINNAME);
 #endif
 
 // blockdevice and filesystem pointers for storage
@@ -339,7 +358,11 @@ int mcc_platform_storage_init(void) {
     int status=0;
 
     if(!init_done) {
+#if COMPONENT_QSPIF
+        bd = &default_bd;
+#else
         bd = BlockDevice::get_default_instance();
+#endif
         if (bd) {
             status = bd->init();
 
@@ -390,12 +413,19 @@ int mcc_platform_storage_init(void) {
 #endif
 #endif // (NUMBER_OF_PARTITIONS > 0)
 #else  // Else for #if (MCC_PLATFORM_PARTITION_MODE == 1)
-    fs1 = FileSystem::get_default_instance();  /* this also mount fs. */
-    part1 = bd;                   /* required for mcc_platform_reformat_storage */
-    status = mcc_platform_test_filesystem(fs1, bd);
-    if (status != 0) {
+    static SlicingBlockDevice fsbd(bd, MBED_CONF_UPDATE_CLIENT_STORAGE_SIZE);
+    part1 = &fsbd;
+    static LittleFileSystem fs("fs", part1);
+    fs.set_as_default();
+    fs1 = &fs;  /* this also mount fs. */
+    status = mcc_platform_test_filesystem(fs1, part1);
+    if (status != 0
+#if PLATFORM_ENABLE_BUTTON
+        || but1 == 0
+#endif
+        ) {
         printf("Formatting ...\n");
-        status = mcc_platform_reformat_partition(fs1, bd);
+        status = mcc_platform_reformat_partition(fs1, part1);
         if (status != 0) {
             printf("Formatting failed with 0x%X !!!\n", status);
             return status;

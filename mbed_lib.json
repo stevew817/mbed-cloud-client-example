@@ -99,6 +99,12 @@
             "sotp-section-1-size"              : "(16*1024)",
             "sotp-section-2-address"           : "(0x08000000+48*1024)",
             "sotp-section-2-size"              : "(16*1024)"
+        },
+        "EFM32GG11_STK3701": {
+            "sotp-section-1-address"           : "(32*1024)",
+            "sotp-section-1-size"              : "(16*1024)",
+            "sotp-section-2-address"           : "(48*1024)",
+            "sotp-section-2-size"              : "(16*1024)"
         }
      }
 }
